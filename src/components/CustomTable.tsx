@@ -6,6 +6,7 @@ export interface CustomTableProps {
   dataSource: any[];
   pagination?: any;
   style?: React.CSSProperties;
+  extraKeys?: any;
 }
 
 export function CustomTable(props: CustomTableProps) {
@@ -24,6 +25,7 @@ export function CustomTable(props: CustomTableProps) {
         dataSource={dataSources}
         pagination={pagination}
         style={props.style}
+        {...props.extraKeys}
       />
     </React.Fragment>
   );

@@ -1,3 +1,5 @@
+/* eslint-disable no-template-curly-in-string */
+/* eslint-disable jsx-a11y/anchor-is-valid */
 import "./index.css";
 import {
   Layout,
@@ -15,11 +17,16 @@ import {
   TableColumnsType,
   message,
   Tag,
+  Form,
 } from "antd";
 import Highlighter from "react-highlight-words";
 import { FileMarkdownFilled, SearchOutlined } from "@ant-design/icons";
-import React, { useEffect, useRef, useState } from "react";
-import { CustomTable } from "./CustomTable";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  CustomTable,
+  CustomDrawer,
+  CustomDrawerProps,
+} from "../../../components";
 import { getBlogs, saveBlogs } from "../../../services/blog.service";
 import { DateFormat } from "../../../utils/utils";
 import { getTags } from "../../../services/tag.service";
@@ -105,6 +112,69 @@ export function AdminIndex() {
     searchedColumn: "",
   });
   const searchInputRef = useRef<any>("");
+  const [drawerConfig, setDrawerConfig] = useState<CustomDrawerProps>();
+  const editBlogInfoRef = useRef<any>();
+
+  const getEditBlogModalConfig = (record: any): CustomDrawerProps => ({
+    title: "编辑博文信息",
+    visible: true,
+    size: "default",
+    onClose: () => {
+      editBlogInfoRef.current = {};
+    },
+    children: (
+      <Form key={`blog-edit-${record.blogId}`}>
+        <Form.Item name={["blog", "title"]} label="标题">
+          <Input
+            defaultValue={record.title || ""}
+            onChange={(e) => {
+              editBlogInfoRef.current.title = e.target.value;
+            }}
+          />
+        </Form.Item>
+        <Form.Item name={["blog", "cover"]} label="封面">
+          <Input
+            defaultValue={record.cover || ""}
+            value={record.cover}
+            onChange={(e) => {
+              editBlogInfoRef.current.cover = e.target.value;
+            }}
+          />
+        </Form.Item>
+        <Form.Item name={["blog", "tags"]} label="标签">
+          <Input
+            defaultValue={record.tags || ""}
+            onChange={(e) => {
+              editBlogInfoRef.current.tags = e.target.value;
+            }}
+          />
+        </Form.Item>
+        <Button
+          type="primary"
+          htmlType="submit"
+          onClick={async () => {
+            console.log(editBlogInfoRef.current);
+            if (
+              !(editBlogInfoRef.current.title && editBlogInfoRef.current.cover)
+            ) {
+              message.warning("标题和封面不能为空");
+              return;
+            }
+            const save = await saveBlogs(editBlogInfoRef.current);
+            if (save.code === 0) {
+              message.success("博文信息修改成功");
+              setDrawerConfig({ ...drawerConfig, visible: false });
+              setNeedFresh(!needFresh);
+            } else {
+              message.error("博文信息修改失败");
+            }
+          }}
+        >
+          修改
+        </Button>
+      </Form>
+    ),
+  });
 
   const changeBlogStatus = async (
     blogId: string,
@@ -229,6 +299,8 @@ export function AdminIndex() {
       title: "id",
       key: "blogId",
       dataIndex: "blogId",
+      fixed: "left",
+      width: 100,
       ellipsis: {
         showTitle: false,
       },
@@ -238,6 +310,7 @@ export function AdminIndex() {
       title: "标题",
       key: "title",
       dataIndex: "title",
+      width: 120,
       ellipsis: {
         showTitle: false,
       },
@@ -402,6 +475,33 @@ export function AdminIndex() {
         new Date(a.updated).getTime() - new Date(b.updated).getTime(),
       defaultSortOrder: "descend",
     },
+    {
+      title: "操作",
+      key: "operation",
+      fixed: "right",
+      width: 150,
+      render: (value: any, record: any) => (
+        <>
+          <a
+            onClick={() => {
+              editBlogInfoRef.current = {
+                blogId: record.blogId,
+                title: record.title,
+                cover: record.cover,
+                tags: record.tags,
+              };
+              setDrawerConfig({ ...getEditBlogModalConfig(record) });
+            }}
+          >
+            编辑
+          </a>
+          &nbsp;
+          <a>内容</a>
+          &nbsp;
+          <a>线上</a>
+        </>
+      ),
+    },
   ];
 
   useEffect(() => {
@@ -431,55 +531,61 @@ export function AdminIndex() {
   }, [needFresh]);
 
   return (
-    <Layout style={{ minHeight: "100vh" }}>
-      <Sider collapsible style={{ userSelect: "none" }}>
-        <div className="logo" />
+    <React.Fragment>
+      <Layout style={{ minHeight: "100vh" }}>
+        <Sider collapsible style={{ userSelect: "none" }}>
+          <div className="logo" />
 
-        <Menu theme="dark" defaultSelectedKeys={["blogManage"]} mode="inline">
-          {navMap.map((nav) =>
-            nav.children && nav.children.length ? (
-              <SubMenu key={nav.key} icon={nav.icon} title={nav.desc}>
-                {nav.children.map((child) => (
-                  <Menu.Item key={child.key}>{child.desc}</Menu.Item>
-                ))}
-              </SubMenu>
-            ) : (
-              <Menu.Item key={nav.key} icon={nav.icon}>
-                {nav.desc}
-              </Menu.Item>
-            )
-          )}
-        </Menu>
-      </Sider>
-      <Layout className="site-layout">
-        <Header
-          className="site-layout-background"
-          style={{ padding: 0, textAlign: "center", userSelect: "none" }}
-        >
-          欢迎来到梦寻博客管理后台
-        </Header>
-        <Content style={{ margin: "0 16px" }}>
-          <Breadcrumb style={{ margin: "16px 0", userSelect: "none" }}>
-            {breadTip.map((bread, index) => (
-              <Breadcrumb.Item key={`bread-${index}`}>{bread}</Breadcrumb.Item>
-            ))}
-          </Breadcrumb>
-          <div
+          <Menu theme="dark" defaultSelectedKeys={["blogManage"]} mode="inline">
+            {navMap.map((nav) =>
+              nav.children && nav.children.length ? (
+                <SubMenu key={nav.key} icon={nav.icon} title={nav.desc}>
+                  {nav.children.map((child) => (
+                    <Menu.Item key={child.key}>{child.desc}</Menu.Item>
+                  ))}
+                </SubMenu>
+              ) : (
+                <Menu.Item key={nav.key} icon={nav.icon}>
+                  {nav.desc}
+                </Menu.Item>
+              )
+            )}
+          </Menu>
+        </Sider>
+        <Layout className="site-layout">
+          <Header
             className="site-layout-background"
-            style={{ padding: 24, minHeight: 540 }}
+            style={{ padding: 0, textAlign: "center", userSelect: "none" }}
           >
-            <CustomTable
-              columns={blogTableColumns}
-              dataSource={blogList}
-              pagination={blogPagination}
-              style={{ userSelect: "none" }}
-            />
-          </div>
-        </Content>
-        <Footer style={{ textAlign: "center", userSelect: "none" }}>
-          Mengxun ©2021 Created by Mengxun
-        </Footer>
+            欢迎来到梦寻博客管理后台
+          </Header>
+          <Content style={{ margin: "0 16px" }}>
+            <Breadcrumb style={{ margin: "16px 0", userSelect: "none" }}>
+              {breadTip.map((bread, index) => (
+                <Breadcrumb.Item key={`bread-${index}`}>
+                  {bread}
+                </Breadcrumb.Item>
+              ))}
+            </Breadcrumb>
+            <div
+              className="site-layout-background"
+              style={{ padding: 24, minHeight: 540 }}
+            >
+              <CustomTable
+                columns={blogTableColumns}
+                dataSource={blogList}
+                pagination={blogPagination}
+                style={{ userSelect: "none" }}
+                extraKeys={{ scroll: { x: 1300 } }}
+              />
+            </div>
+          </Content>
+          <Footer style={{ textAlign: "center", userSelect: "none" }}>
+            Mengxun ©2021 Created by Mengxun
+          </Footer>
+        </Layout>
       </Layout>
-    </Layout>
+      <CustomDrawer {...drawerConfig} />
+    </React.Fragment>
   );
 }
